@@ -39,10 +39,17 @@ func MakeClerk(server *labrpc.ClientEnd) *Clerk {
 func (ck *Clerk) Get(key string) string {
 	args := GetArgs{
 		Key: key,
+		ID:  nrand(),
 	}
 	reply := GetReply{}
 
-	ck.server.Call("KVServer.Get", &args, &reply)
+	var ok bool
+	for {
+		ok = ck.server.Call("KVServer.Get", &args, &reply)
+		if ok {
+			break
+		}
+	}
 
 	return reply.Value
 }
@@ -59,10 +66,17 @@ func (ck *Clerk) PutAppend(key string, value string, op string) string {
 	args := PutAppendArgs{
 		Key:   key,
 		Value: value,
+		ID:    nrand(),
 	}
 	reply := PutAppendReply{}
 
-	ck.server.Call("KVServer."+op, &args, &reply)
+	var ok bool
+	for {
+		ok = ck.server.Call("KVServer."+op, &args, &reply)
+		if ok {
+			break
+		}
+	}
 
 	return reply.Value
 }
