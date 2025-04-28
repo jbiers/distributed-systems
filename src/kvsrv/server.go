@@ -18,22 +18,23 @@ type KVServer struct {
 	mu sync.Mutex
 
 	data       map[string]string
-	requestIDs map[int64]string
+	requestIDs map[string]string
+}
+
+func (kv *KVServer) deleteEntry(r RequestID) {
+	delete(kv.requestIDs, r.GetString())
 }
 
 func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
 
-	if value, exists := kv.requestIDs[args.ID]; exists {
-		reply.Value = value
-		//delete(kv.requestIDs, args.ID)
-		return
-	}
+	kv.deleteEntry(RequestID{
+		ClientID: args.ID.ClientID,
+		RPCCount: args.ID.RPCCount - 1,
+	})
 
 	value := kv.data[args.Key]
-
-	kv.requestIDs[args.ID] = value
 	reply.Value = value
 }
 
@@ -41,15 +42,12 @@ func (kv *KVServer) Put(args *PutAppendArgs, reply *PutAppendReply) {
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
 
-	if value, exists := kv.requestIDs[args.ID]; exists {
-		reply.Value = value
-		//delete(kv.requestIDs, args.ID)
-		return
-	}
+	kv.deleteEntry(RequestID{
+		ClientID: args.ID.ClientID,
+		RPCCount: args.ID.RPCCount - 1,
+	})
 
 	kv.data[args.Key] = args.Value
-	kv.requestIDs[args.ID] = args.Value
-
 	reply.Value = args.Value
 }
 
@@ -57,15 +55,19 @@ func (kv *KVServer) Append(args *PutAppendArgs, reply *PutAppendReply) {
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
 
-	if value, exists := kv.requestIDs[args.ID]; exists {
+	kv.deleteEntry(RequestID{
+		ClientID: args.ID.ClientID,
+		RPCCount: args.ID.RPCCount - 1,
+	})
+
+	if value, exists := kv.requestIDs[args.ID.GetString()]; exists {
 		reply.Value = value
-		//delete(kv.requestIDs, args.ID)
 		return
 	}
 
 	initialValue := kv.data[args.Key]
 	kv.data[args.Key] = initialValue + args.Value
-	kv.requestIDs[args.ID] = initialValue
+	kv.requestIDs[args.ID.GetString()] = initialValue
 
 	reply.Value = initialValue
 }
@@ -74,7 +76,7 @@ func StartKVServer() *KVServer {
 	kv := new(KVServer)
 
 	kv.data = make(map[string]string)
-	kv.requestIDs = make(map[int64]string)
+	kv.requestIDs = make(map[string]string)
 
 	return kv
 }

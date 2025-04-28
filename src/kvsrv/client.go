@@ -2,14 +2,20 @@ package kvsrv
 
 import (
 	"crypto/rand"
+	"fmt"
 	"math/big"
 
 	"6.5840/labrpc"
 )
 
 type Clerk struct {
-	server *labrpc.ClientEnd
-	// You will have to modify this struct.
+	server   *labrpc.ClientEnd
+	clientID int64
+	rpcCount int
+}
+
+func getRPCID(client int64, rpc int) string {
+	return fmt.Sprintf("%d-%d", client, rpc)
 }
 
 func nrand() int64 {
@@ -22,7 +28,9 @@ func nrand() int64 {
 func MakeClerk(server *labrpc.ClientEnd) *Clerk {
 	ck := new(Clerk)
 	ck.server = server
-	// You'll have to add code here.
+	ck.clientID = nrand()
+	ck.rpcCount = 0
+
 	return ck
 }
 
@@ -39,9 +47,13 @@ func MakeClerk(server *labrpc.ClientEnd) *Clerk {
 func (ck *Clerk) Get(key string) string {
 	args := GetArgs{
 		Key: key,
-		ID:  nrand(),
+		ID: RequestID{
+			ClientID: ck.clientID,
+			RPCCount: ck.rpcCount,
+		},
 	}
 	reply := GetReply{}
+	ck.rpcCount++
 
 	var ok bool
 	for {
@@ -66,9 +78,13 @@ func (ck *Clerk) PutAppend(key string, value string, op string) string {
 	args := PutAppendArgs{
 		Key:   key,
 		Value: value,
-		ID:    nrand(),
+		ID: RequestID{
+			ClientID: ck.clientID,
+			RPCCount: ck.rpcCount,
+		},
 	}
 	reply := PutAppendReply{}
+	ck.rpcCount++
 
 	var ok bool
 	for {
